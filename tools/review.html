@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Promo Studio · 审片台</title>
+<style>
+  :root {
+    --bg: #0d0f14; --panel: #151922; --panel2: #1b2030; --line: #262c3b; --text: #e7eaf2; --muted: #8a93a8;
+    --accent: #4fd1c5; --accent2: #7c6cff; --warn: #f6ad55; --danger: #fc8181; --ok: #68d391;
+    --track-h: 34px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.45 "Microsoft YaHei UI", "Noto Sans SC", system-ui, sans-serif; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  .mono { font-family: "Paper Mono", Consolas, monospace; }
+  .app { display: grid; grid-template-rows: 46px 1fr auto; height: 100vh; }
+  header { display: flex; align-items: center; gap: 14px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: 0; }
+  header .tag { color: var(--muted); }
+  header .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { background: transparent; border: 0; padding: 5px 12px; cursor: pointer; color: var(--muted); }
+  .seg button.on { background: var(--panel2); color: var(--text); }
+  select { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+  .main { display: grid; grid-template-columns: 1fr 360px; min-height: 0; }
+  .stage { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 14px; min-height: 0; }
+  .viewport { position: relative; height: calc(100% - 52px); aspect-ratio: 9 / 16; max-width: 100%; background: #000; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 20px 50px rgba(0,0,0,.5); }
+  .viewport canvas, .viewport video { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .viewport .safe { position: absolute; inset: 7% 6% 13% 6%; border: 1px dashed rgba(255,255,255,.25); pointer-events: none; display: none; }
+  .viewport.show-safe .safe { display: block; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: rgba(0,0,0,.6); }
+  .transport { display: flex; align-items: center; gap: 8px; }
+  .transport button { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; height: 32px; min-width: 36px; padding: 0 10px; cursor: pointer; }
+  .transport button:hover { border-color: var(--accent); }
+  .transport .play { min-width: 52px; background: var(--accent); color: #062a27; border-color: var(--accent); font-weight: 700; }
+  .transport .time { font-size: 15px; min-width: 190px; text-align: center; }
+  .transport .on { border-color: var(--accent); color: var(--accent); }
+  aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; background: none; border: 0; padding: 10px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .pane { flex: 1; overflow: auto; padding: 12px; display: none; }
+  .pane.on { display: block; }
+  .note-form { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 12px; }
+  .note-form .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; color: var(--muted); }
+  .note-form textarea { width: 100%; min-height: 70px; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .note-form .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .btn { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #062a27; font-weight: 700; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer; color: var(--muted); background: transparent; }
+  .chip.on { border-color: var(--warn); color: var(--warn); }
+  .note { border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; margin-bottom: 8px; cursor: pointer; background: var(--panel); }
+  .note:hover { border-color: var(--accent2); }
+  .note.done { opacity: .5; }
+  .note .meta { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .note .meta .t { color: var(--accent); }
+  .note .meta .kind { color: var(--warn); }
+  .note .meta .x { margin-left: auto; display: flex; gap: 6px; }
+  .note .meta .x button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 2px; }
+  .note .meta .x button:hover { color: var(--text); }
+  .note .body { white-space: pre-wrap; }
+  .scene-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; cursor: pointer; }
+  .scene-item.cur { border-color: var(--accent); }
+  .scene-item h4 { margin: 0 0 4px; font-size: 13px; display: flex; gap: 8px; }
+  .scene-item h4 .mono { color: var(--muted); font-weight: 400; margin-left: auto; }
+  .scene-item p { margin: 2px 0; color: var(--muted); }
+  .help { color: var(--muted); font-size: 12px; }
+  .help kbd { font-family: "Paper Mono", monospace; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+  .status { color: var(--muted); font-size: 12px; }
+  /* timeline */
+  .timeline { background: var(--panel); border-top: 1px solid var(--line); user-select: none; }
+  .tl-bar { display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .tl-bar input[type=range] { width: 140px; }
+  .tl-body { display: grid; grid-template-columns: 86px 1fr; }
+  .tl-labels div { height: var(--track-h); display: flex; align-items: center; padding-left: 12px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 12px; }
+  .tl-labels div:first-child { height: 26px; }
+  .tl-scroll { overflow-x: auto; overflow-y: hidden; position: relative; }
+  .tl-inner { position: relative; }
+  .ruler { height: 26px; position: relative; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .ruler .tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
+  .ruler .tick.sec { border-left-color: #3a4256; }
+  .ruler .tick span { position: absolute; top: 4px; left: 4px; font-size: 11px; color: var(--muted); font-family: "Paper Mono", monospace; }
+  .track { height: var(--track-h); position: relative; border-bottom: 1px solid var(--line); }
+  .clip { position: absolute; top: 4px; bottom: 4px; border-radius: 6px; padding: 0 8px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; font-size: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,.15); }
+  .clip.cur { outline: 2px solid #fff; }
+  .clip.cap { background: #2b3550; color: #cfd8f0; }
+  .sfx { position: absolute; top: 6px; width: 2px; bottom: 6px; background: var(--warn); }
+  .sfx span { position: absolute; top: -2px; left: 4px; font-size: 10px; color: var(--warn); white-space: nowrap; }
+  .pin { position: absolute; top: 5px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--danger); cursor: pointer; }
+  .pin.done { background: var(--ok); }
+  canvas.wave { position: absolute; inset: 0; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; pointer-events: none; box-shadow: 0 0 8px rgba(255,255,255,.6); }
+  .playhead::before { content: ""; position: absolute; top: 0; left: -6px; border: 7px solid transparent; border-top-color: #fff; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Promo Studio · 审片台</h1>
+    <span class="tag" id="title"></span>
+    <span class="spacer"></span>
+    <div class="seg" id="source">
+      <button data-src="live" class="on" title="实时用代码绘制，改完代码刷新即可看到">实时预览</button>
+      <button data-src="video" title="播放已渲染的 MP4 成片">成片</button>
+    </div>
+    <select id="outputs" title="选择成片版本"></select>
+    <span class="status" id="saveStatus"></span>
+  </header>
+
+  <div class="main">
+    <section class="stage">
+      <div class="viewport" id="viewport">
+        <canvas id="canvas"></canvas>
+        <video id="video" playsinline hidden></video>
+        <div class="safe"></div>
+        <div class="loading" id="loading">加载素材与生成配乐中…</div>
+      </div>
+      <div class="transport">
+        <button id="toStart" title="回到开头 (Home)">⏮</button>
+        <button id="prevScene" title="上一场景 (↑)">«</button>
+        <button id="stepBack" title="后退一帧 (←，Shift 为 1 秒)">◂</button>
+        <button id="play" class="play" title="播放 / 暂停 (空格)">▶</button>
+        <button id="stepFwd" title="前进一帧 (→，Shift 为 1 秒)">▸</button>
+        <button id="nextScene" title="下一场景 (↓)">»</button>
+        <span class="time mono" id="time">00:00.00 / 00:00.00</span>
+        <button id="loop" title="循环当前场景 (L)">循环场景</button>
+        <select id="rate" title="播放速度"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option></select>
+        <button id="mute" title="静音 (M)">🔊</button>
+        <button id="safe" title="显示平台安全区 (S)">安全区</button>
+      </div>
+    </section>
+
+    <aside>
+      <div class="tabs">
+        <button class="on" data-pane="notes">批注 <span id="noteCount"></span></button>
+        <button data-pane="scenes">分镜</button>
+        <button data-pane="help">快捷键</button>
+      </div>
+      <div class="pane on" id="pane-notes">
+        <div class="note-form">
+          <div class="row">在 <b class="mono" id="noteAt">00:00.00</b> 处 · <span id="noteScene"></span></div>
+          <div class="chips" id="kinds">
+            <button class="chip on" data-kind="画面">画面</button>
+            <button class="chip" data-kind="字幕">字幕</button>
+            <button class="chip" data-kind="节奏">节奏</button>
+            <button class="chip" data-kind="音乐">音乐</button>
+            <button class="chip" data-kind="其他">其他</button>
+          </div>
+          <textarea id="noteText" placeholder="写下修改意见，例如：这里字幕太快 / 换个转场 / 卡点没对上…（Ctrl+Enter 保存）" style="margin-top:8px"></textarea>
+          <div class="actions"><button class="btn primary" id="addNote">添加批注</button></div>
+        </div>
+        <div id="notes"></div>
+      </div>
+      <div class="pane" id="pane-scenes"><div id="scenes"></div></div>
+      <div class="pane help" id="pane-help">
+        <p><kbd>空格</kbd> 播放 / 暂停</p>
+        <p><kbd>←</kbd> <kbd>→</kbd> 逐帧；按住 <kbd>Shift</kbd> 跳 1 秒</p>
+        <p><kbd>↑</kbd> <kbd>↓</kbd> 上一场景 / 下一场景</p>
+        <p><kbd>Home</kbd> 回到开头</p>
+        <p><kbd>N</kbd> 在当前时间写批注</p>
+        <p><kbd>L</kbd> 循环当前场景；<kbd>M</kbd> 静音；<kbd>S</kbd> 安全区</p>
+        <p>时间线上：点击或拖动跳转；点击场景块跳到场景开头；红色图钉是待处理批注，绿色是已处理。</p>
+        <p>批注自动保存到 <span class="mono">campaigns/&lt;id&gt;/review.json</span>，AI 可以直接读取并按批注修改。</p>
+      </div>
+    </aside>
+  </div>
+
+  <section class="timeline">
+    <div class="tl-bar">
+      <span>时间线</span>
+      <span>缩放</span><input type="range" id="zoom" min="20" max="240" value="48">
+      <label><input type="checkbox" id="follow" checked> 播放时跟随</label>
+      <span class="spacer" style="flex:1"></span>
+      <span class="mono" id="beatInfo"></span>
+    </div>
+    <div class="tl-body">
+      <div class="tl-labels">
+        <div></div><div>场景</div><div>字幕</div><div>音效</div><div>音频</div><div>批注</div>
+      </div>
+      <div class="tl-scroll" id="tlScroll">
+        <div class="tl-inner" id="tlInner">
+          <div class="ruler" id="ruler"></div>
+          <div class="track" id="trkScenes"></div>
+          <div class="track" id="trkCaps"></div>
+          <div class="track" id="trkSfx"></div>
+          <div class="track" id="trkAudio"><canvas class="wave" id="wave"></canvas></div>
+          <div class="track" id="trkNotes"></div>
+          <div class="playhead" id="playhead"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script type="module" src="./review.js"></script>
+</body>
+</html>
